@@ -1,0 +1,63 @@
+<html>
+   <head>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+   </head>
+   <body>
+      <div class="ui two column doubling stackable grid container segments">
+         <div class="ui column segment">
+            <form class="ui form" action = "http://localhost:5000/upload" method = "POST" enctype = "multipart/form-data">
+               <input type = "file" name = "file" class="ui button" />
+               <input type = "submit" class="ui primary button"/>
+            </form>
+         </div>
+         <div class="ui column segment">
+            <h3 class="ui top attached header">
+               Results
+             </h3>
+             <div class="ui attached segment">
+               <p>
+                  The results are as follows:
+               </p>
+             </div>
+             <h3 class="ui attached header">
+               Original Image
+             </h3>
+             <div class="ui attached segment">
+               <div class="ui container">
+                  <img class="ui centred medium bordered image" src="images/IMG-20220706-WA0010.jpg">
+               </div>
+             </div>
+             <h3 class="ui attached header">
+               Original Mask
+             </h3>
+             <div class="ui attached segment">
+               <p>
+                  <img class="ui medium centred bordered image" src="images/IMG-20220706-WA0010.jpg">
+               </p>
+             </div>
+             <h3 class="ui attached header">
+               Predicted Mask
+             </h3>
+             <div class="ui attached segment">
+               <p>
+                  <img class="ui medium centred bordered image" src="images/IMG-20220706-WA0010.jpg">
+               </p>
+             </div>
+             <h3 class="ui attached header">
+               Stats
+             </h3>
+             <div class="ui attached segment">
+               <div class="list">
+                  <p class="item">Accuracy</p>
+                  <p class="item">Loss</p>
+                  <p class="item">Dice Score </p>
+               </div>
+             </div>
+
+           <p>Accuracy 99%</p>
+           <p>Dice Score :</p>
+
+         </div>
+      <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+   </body>
+</html>
