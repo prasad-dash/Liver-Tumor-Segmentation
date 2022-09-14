@@ -1,7 +1,9 @@
 # flask imports
+from traceback import print_tb
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 import uuid  # for public id
+import matplotlib.pyplot as plt
 from flask import send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import send_file
@@ -33,7 +35,7 @@ if os.path.exists('parrot.pkl'):
         LIST_OF_USERS = pickle.load(f)
 
 
-model = tf.keras.models.load_model('LiverModelv5')
+model = tf.keras.models.load_model("/Users/aditya/Documents/Repositories/Medical_research/Liver/Liver-Tumor-Segmentation/LiverModelv7-4_fold1")
 
 # decorator for verifying the JWT
 def token_required(f):
@@ -53,7 +55,9 @@ def token_required(f):
 
         try:
             # decoding the payload to fetch the stored details
-            data = jwt.decode(token, app.config["SECRET_KEY"])
+            
+            data = jwt.decode(token, app.config["SECRET_KEY"],algorithms=["HS256"])
+            print(data)
             current_user = [
                 i
                 for i in LIST_OF_USERS
@@ -83,8 +87,8 @@ def get_all_users(current_user):
 @app.route("/login", methods=["POST"])
 def login():
     # creates dictionary of form data
-    auth = request.form
-
+    auth = request.json
+    print(auth)
     if not auth or not auth.get("username") or not auth.get("password"):
         # returns 401 if any username or / and password is missing
         return make_response(
@@ -97,7 +101,7 @@ def login():
     if len(user) == 0:
         # returns 401 if user does not exist
         return make_response(
-            "Could not verify",
+            "Could not verify as doesnt exist",
             401,
             {"WWW-Authenticate": 'Basic realm ="User does not exist !!"'},
         )
@@ -114,7 +118,7 @@ def login():
         )
 
         return make_response(jsonify({
-                "token": token.decode("UTF-8"),
+                "token": token,
                 "user":{
                     "firstName": user[0]["firstName"],
                     "lastName": user[0]["lastName"],
@@ -172,7 +176,7 @@ def signup():
         with open('parrot.pkl', 'wb') as f:
             pickle.dump(LIST_OF_USERS, f)
         return make_response(jsonify({
-                "token": token.decode("UTF-8"),
+                "token": token,
                 "user":{
                     "firstName":firstName,
                     "lastName": lastName,
@@ -188,30 +192,53 @@ def signup():
 @app.route("/upload", methods=["POST"])
 @token_required
 def upload(current_user=None):
-    f = request.files["file"]
-    f.save(secure_filename(f.filename))
+    f = request.files.getlist("file")
+    print(len(f),"f_len")
+    f[0].save(secure_filename(f[0].filename))
     print("Data Saved")
     if request.form.get('evaluate')=="true":
-        mask = request.files["mask"]
+        # mask = request.files["mask"]
+        mask = f[1]
         mask.save(secure_filename(mask.filename))
         print("Mask Saved")
         mask_img = nib.load(mask.filename)
-        mask_img_data = mask_img.get_fdata()
-        mask_img_data = mask_img_data.reshape(-1,512,512)
+        mask_img_data = mask_img.dataobj
+        # mask_img_data = np.einsum('ijk->kij',mask_img_data)
+        # mask_img_data = mask_img_data.reshape(-1,512,512)
 
-    img = nib.load(f.filename)
+    img = nib.load(f[0].filename)
     img_data = img.get_fdata()
-    img_data = img_data.reshape(-1,512,512)
-    if request.form.get('evaluate')=="true":
-        results = model.evaluate(img_data,mask_img_data)
-        return jsonify({"results":results})
-        
+    print(img_data.shape)
+    plt.imsave('/Users/aditya/Documents/Repositories/Medical_research/Liver/MedicalFrontend/src/assets/images/og.jpg',img_data[:,:,233],cmap="gray")
+    img_data = np.einsum('ijk->kij',img_data)
+    plt.imsave('/Users/aditya/Documents/Repositories/Medical_research/Liver/MedicalFrontend/src/assets/images/reshape.jpg',img_data[233,:,:],cmap="gray")
+    print(img_data.shape)
+    # img_data = img_data[:10]
     res = model.predict(img_data)
-    res = res.reshape(512,512,-1)
+    # res = nib.load("/Users/aditya/Downloads/result.nii").dataobj
+    print(res.shape)
+    res = np.argmax(res,axis=3)
+    print(res.shape)
+    res = np.einsum('kij->ijk',res)
+    print(res.shape)
+    # tumor_mask = res == 2
+    sum_img = np.einsum('ijk->k',res)
+    good_layer = np.argmax(sum_img)
+    # mid_layer = res.shape[2]//2   
+    print(good_layer)
+    img_display = res[:,:,good_layer] 
+    og_image = img_data[good_layer,:,:]
+    print(og_image.shape)
+    if request.form.get('evaluate')=="true":
+        # results = model.evaluate(img_data,mask_img_data)
+        plt.imsave('/Users/aditya/Documents/Repositories/Medical_research/Liver/MedicalFrontend/src/assets/images/mask.png',mask_img_data[:,:,good_layer],cmap="gray")
+        # return jsonify({"results":results})
+    plt.imsave('/Users/aditya/Documents/Repositories/Medical_research/Liver/MedicalFrontend/src/assets/images/input.png',og_image,cmap="gray")
+    plt.imsave('/Users/aditya/Documents/Repositories/Medical_research/Liver/MedicalFrontend/src/assets/images/display.png',img_display, cmap="gray")
     img = nib.Nifti1Image(res, np.eye(4))
     img.get_data_dtype() == np.dtype(np.int16)
     nib.save(img,  'res.nii.gz')  
-    return send_from_directory('.','res.nii.gz', as_attachment=True,filename='res.nii.gz')
+    return send_from_directory('/Users/aditya/Documents/Repositories/Medical_research/Liver/Liver-Tumor-Segmentation/','res.nii.gz', as_attachment=True)
 
 
 if __name__ == "__main__":
